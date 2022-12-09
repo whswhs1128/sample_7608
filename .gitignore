@@ -170,3 +170,7 @@ sphinx_*/
 
 # Rust analyzer configuration
 /rust-project.json
+
+svp/ive/sample/sample_ive_md.o
+svp/ive/sample/sample_ive_test_memory.o
+svp/ive/sample_ive_main
