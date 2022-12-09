@@ -207,10 +207,10 @@ td_void sample_ive_test_memory(td_void)
         "Error(%#x),sample_ive_test_memory_init failed!\n", ret);
 
     ret = sample_ive_test_memory_proc(&g_test_mem_info);
-    if (g_stop_signal == TD_TRUE) {
-        sample_ive_test_mem_stop();
-        return;
-    }
+    //if (g_stop_signal == TD_TRUE) {
+    //    sample_ive_test_mem_stop();
+    //    return;
+    //}
     if (ret == TD_SUCCESS) {
         sample_svp_trace_info("Process success!\n");
     } else {

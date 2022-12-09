@@ -17,6 +17,7 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <sys/prctl.h>
+#include <sys/shm.h>
 
 #define OT_SAMPLE_IVE_MD_IMAGE_NUM          2
 #define OT_SAMPLE_IVE_MD_MILLIC_SEC         20000
@@ -251,7 +252,41 @@ int yuv2rgb_nv12(unsigned char* pYuvBuf, unsigned char* pRgbBuf, int height, int
     return 1;
 }
 
+
+int shmid_tx;
+void* ptr_tx;
+int shmid_rx;
+void* ptr_rx;
+unsigned int size;
+
+
+ot_sample_svp_rect_info function_draw_region() {
+	ot_sample_svp_rect_info region_tmp;
+	printf("======>recv rx data! length is %ld\n",sizeof(*ptr_rx));
+
+	int p[61];
+        memcpy(p, ptr_rx,512);
+
+	for (int i = 0; i < 61; i++)
+	{
+		printf("p[%d] is %d,",i, p[i]);	
+	}
+	printf("\n");
+
+
+
+
+//fuzhi
+
+
+
+	memset(ptr_rx, 0, 4096);
+	
+	return region_tmp; 
+}
+
 int i;
+ot_sample_svp_rect_info region_tmp;
 static td_void *sample_ivs_md_proc(td_void *args)
 {
     td_s32 ret;
@@ -268,6 +303,12 @@ static td_void *sample_ivs_md_proc(td_void *args)
     ret = ot_ivs_md_create_chn(hld.md_chn, &(md_ptr->md_attr));
     sample_svp_check_exps_return(ret != TD_SUCCESS, TD_NULL, SAMPLE_SVP_ERR_LEVEL_ERROR, "ot_ivs_md_create_chn fail\n");
 
+    size =12441600;
+    shmid_tx = shmget(100, size*2, IPC_CREAT|0664);
+    ptr_tx = shmat(shmid_tx, NULL, 0);
+    shmid_rx = shmget(111, 4096, IPC_CREAT|0664);
+    ptr_rx = shmat(shmid_rx, NULL, 0);
+    
     while (g_stop_signal == TD_FALSE) {
         ret = ss_mpi_vpss_get_chn_frame(hld.vpss_grp, vpss_chn[1], &frm[1], OT_SAMPLE_IVE_MD_MILLIC_SEC);
         sample_svp_check_exps_continue(ret != TD_SUCCESS, SAMPLE_SVP_ERR_LEVEL_ERROR,
@@ -288,20 +329,21 @@ static td_void *sample_ivs_md_proc(td_void *args)
         ret = ot_ivs_md_proc(hld.md_chn, &md_ptr->img[cur_idx], &md_ptr->img[1 - cur_idx], TD_NULL, &md_ptr->blob);
         sample_svp_check_failed_goto(ret, base_free, SAMPLE_SVP_ERR_LEVEL_ERROR, "ivs_md_proc fail,Err(%#x)\n", ret);
 
-	if(i == 100) {
-		char *filename = "file.yuv";
-		unsigned char *user_addr;
-		unsigned int size;
-
-		size = frm[0].video_frame.stride[0] * frm[0].video_frame.height * 3/2;
-		user_addr = (unsigned char *)ss_mpi_sys_mmap(frm[0].video_frame.phys_addr[0], size);
-
-		FILE *fp = fopen(filename, "w+");
-		fwrite(user_addr, size, 1, fp);
-		fclose(fp);
-
-		ss_mpi_sys_munmap(user_addr, size);
-	}
+	
+//	if(i == 100) {
+//		char *filename = "file.yuv";
+//		unsigned char *user_addr;
+//		unsigned int size;
+//
+//		size = frm[0].video_frame.stride[0] * frm[0].video_frame.height * 3/2;
+//		user_addr = (unsigned char *)ss_mpi_sys_mmap(frm[0].video_frame.phys_addr[0], size);
+//
+//		FILE *fp = fopen(filename, "w+");
+//		fwrite(user_addr, size, 1, fp);
+//		fclose(fp);
+//
+//		ss_mpi_sys_munmap(user_addr, size);
+//	}
 	i++;
 	sample_ivs_set_src_dst_size(&g_src_dst, md_ptr->md_attr.width, md_ptr->md_attr.height,
             frm[0].video_frame.width, frm[0].video_frame.height);
@@ -309,35 +351,40 @@ static td_void *sample_ivs_md_proc(td_void *args)
             &(md_ptr->region), OT_SVP_RECT_NUM, OT_SAMPLE_IVE_MD_AREA_THR_STEP, g_src_dst);
         sample_svp_check_exps_goto(ret != TD_SUCCESS, base_free, SAMPLE_SVP_ERR_LEVEL_ERROR, "blob to rect failed!\n");
 
-	int num = 2;
-	ot_sample_svp_rect_info region_tmp;
-	region_tmp.num = num;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
-	region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
-	region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].x = 500;
-        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
-
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].x = 1000;
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].y = 1000;
-	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].x = 1500;
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].y = 1000;
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].x = 1500;
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].y = 1500;
-	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].x = 1000;
-        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].y = 1500;
-//	int num = md_ptr->region.num;
-//	printf("num is %d\n",num);
-//	for(int j=0; j<num; j++){
-//		printf("enter j is %d\n",j);
-//		printf("point1_x is %d,point_y is %d\n",md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_ZERO].x,md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_ZERO].y);
-//		printf("point2_x is %d,point_y is %d\n",md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_ONE].x,md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_ONE].y);
-//		printf("point3_x is %d,point_y is %d\n",md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_TWO].x,md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_TWO].y);
-//		printf("point4_x is %d,point_y is %d\n",md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_THREE].x,md_ptr->region.rect[j].point[OT_SAMPLE_POINT_IDX_THREE].y);
-//	}
+#if 1	
+	//if(strlen(ptr_tx) == 0) {
+	if(1) {
+	    unsigned char *user_addr;
+	    user_addr = (unsigned char *)ss_mpi_sys_mmap(frm[0].video_frame.phys_addr[0], size);
+	    memcpy(ptr_tx,user_addr,size);
+	    ss_mpi_sys_munmap(user_addr, size);
+	}
+	
+	if(strlen(ptr_rx) != 0) {
+	    printf("=====>>ptr_rx is not null.\n");
+	    region_tmp = function_draw_region();
+	}
+#endif
+//	int num = 2;
+//	ot_sample_svp_rect_info region_tmp;
+//	region_tmp.num = num;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
+//	region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
+//	region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].x = 500;
+//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
+//
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].x = 1000;
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].y = 1000;
+//	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].x = 1500;
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].y = 1000;
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].x = 1500;
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].y = 1500;
+//	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].x = 1000;
+//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].y = 1500;
 	
 	/* Draw rect */
        // ret = sample_common_svp_vgs_fill_rect(&frm[0], &md_ptr->region, 0x0000FF00);
@@ -434,7 +481,8 @@ td_void sample_ive_md(td_void)
     ret = pthread_create(&g_md_thread, 0, sample_ivs_md_proc, (td_void *)&g_md_info);
     sample_svp_check_exps_goto(ret != TD_SUCCESS, end_md_0, SAMPLE_SVP_ERR_LEVEL_ERROR, "pthread_create failed!\n");
 
-    ret = sample_ive_md_pause();
+//    ret = sample_ive_md_pause();
+    while(1);
     sample_svp_check_exps_return_void(ret == TD_TRUE, SAMPLE_SVP_ERR_LEVEL_ERROR, "md exist!\n");
     g_stop_signal = TD_TRUE;
     pthread_join(g_md_thread, TD_NULL);
