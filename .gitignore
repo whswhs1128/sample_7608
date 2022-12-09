@@ -75,7 +75,8 @@ modules.order
 # RPM spec file (make rpm-pkg)
 #
 /*.spec
-
+/*.o
+/sample*
 #
 # Debian directory (make deb-pkg)
 #
