@@ -19,6 +19,7 @@
 #include <sys/prctl.h>
 #include <limits.h>
 #include "sample_comm.h"
+#include <stdatomic.h>
 
 #define SEND_STREAM_CNT 5
 #define VDEC_SECOND 1000000
@@ -558,7 +559,7 @@ td_void sample_comm_vdec_send_stream_process(vdec_thread_param *thread_param, FI
         }
 
         end_of_stream = TD_FALSE;
-        fseek(fp_strm, used_bytes, SEEK_SET);
+        // fseek(fp_strm, used_bytes, SEEK_SET);
         read_len = fread(buf, 1, thread_param->min_buf_size, fp_strm);
         if (read_len == 0) {
             if (thread_param->circle_send == TD_TRUE) {
@@ -590,6 +591,8 @@ td_void sample_comm_vdec_send_stream_process(vdec_thread_param *thread_param, FI
     return;
 }
 
+
+
 td_s32 sample_comm_vdec_check_send_stream_param(vdec_thread_param *thread_param,
     td_char *c_stream_file, td_u32 arr_len)
 {
@@ -620,11 +623,126 @@ td_s32 sample_comm_vdec_check_send_stream_param(vdec_thread_param *thread_param,
     }
     return TD_SUCCESS;
 }
+#include <libavformat/avformat.h> 
+
+td_u8 *buf_tmp = TD_NULL;
+int size_tmp;
+atomic_uint random_int;
+
+int *udp_send_thread()
+{
+	AVFormatContext *pFormatCtx = NULL;
+	AVDictionary *options = NULL;
+	AVPacket *packet = NULL;
+	char filepath[] = "rtsp://192.168.1.103/stream0";
+    pthread_detach(pthread_self());
+	
+	av_dict_set(&options, "buffer_size", "8192000", 0);
+	av_dict_set(&options, "rtsp_transport", "tcp", 0);
+	av_dict_set(&options, "stimeout", "5000000", 0); 
+	av_dict_set(&options, "max_delay", "500000", 0); 
+	
+	pFormatCtx = avformat_alloc_context(); 
+ 
+ 
+	if (avformat_open_input(&pFormatCtx, filepath, NULL, &options) != 0)
+	{
+		printf("Couldn't open input stream.\n");
+		return 0;
+	}
+	
+	if (avformat_find_stream_info(pFormatCtx, NULL)<0)
+	{
+		printf("Couldn't find stream information.\n");
+		return 0;
+	}
+	
+	int videoindex = -1;
+	unsigned i = 0;
+	for (i = 0; i<pFormatCtx->nb_streams; i++)
+		if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO )
+		{
+			videoindex = i;
+			break;
+		}
+	if (videoindex == -1)
+	{
+		printf("Didn't find a video stream.\n");
+		return 0;
+	}
+ 
+	packet = (AVPacket *)av_malloc(sizeof(AVPacket)); 
+ 
+	while(1)
+	{
+		if (av_read_frame(pFormatCtx, packet) >= 0)
+		{
+			if (packet->stream_index == videoindex)
+			{
+				if(random_int == 1) {
+					memcpy(buf_tmp, packet->data, packet->size);
+					random_int = 0;
+					size_tmp = packet->size;
+				}
+			}
+			av_packet_unref(packet);
+		}
+	}
+    av_free(packet);
+	avformat_close_input(&pFormatCtx);
+ 
+    return 0;
+}
+
+td_void sample_comm_vdec_send_stream_process_tmp(vdec_thread_param *thread_param)
+{
+    td_bool end_of_stream;
+    td_s32 used_bytes = 0;
+    td_s32 read_len;
+    td_u64 pts = thread_param->pts_init;
+    td_u32 start;
+    ot_vdec_stream stream;
+    td_u8 *buf_in = TD_NULL;
+    
+
+    buf_in = malloc(8 * 1024 * 1024);
+    thread_param->last_time = 0;
+    thread_param->time_gap = 0;
+    while (1) {
+        if (thread_param->e_thread_ctrl == THREAD_CTRL_STOP) {
+            break;
+        } else if (thread_param->e_thread_ctrl == THREAD_CTRL_PAUSE) {
+            sleep(1);
+            continue;
+        }
+
+        if(random_int == 1) {
+            usleep(20);
+            continue;
+        }
+        end_of_stream = TD_FALSE;
+        read_len = size_tmp;
+        memcpy(buf_in, buf_tmp, size_tmp);
+       
+
+        used_bytes = 0;
+        stream.pts = pts;
+        stream.addr = buf_in;
+        stream.len = read_len;
+        stream.end_of_frame = (thread_param->stream_mode == OT_VDEC_SEND_MODE_FRAME ||
+            thread_param->stream_mode == OT_VDEC_SEND_MODE_COMPAT) ? TD_TRUE : TD_FALSE;
+        stream.need_display = 1;
+
+        sample_comm_vdec_handle_send_stream(thread_param, &stream, &end_of_stream, &pts);
+        random_int = 1;
+    }
+    return;
+}
 
 td_void *sample_comm_vdec_send_stream(td_void *args)
 {
     vdec_thread_param *thread_param = (vdec_thread_param *)args;
-    FILE *fp_strm = TD_NULL;
+    // FILE *fp_strm = TD_NULL;
     td_u8 *buf = TD_NULL;
     ot_vdec_stream stream;
     td_char c_stream_file[FILE_NAME_LEN];
@@ -632,39 +750,57 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
 
     prctl(PR_SET_NAME, "video_send_stream", 0, 0, 0);
 
-    if (sample_comm_vdec_check_send_stream_param(thread_param, c_stream_file, FILE_NAME_LEN) != TD_SUCCESS) {
-        return (td_void *)(TD_FAILURE);
-    }
+//    if (sample_comm_vdec_check_send_stream_param(thread_param, c_stream_file, FILE_NAME_LEN) != TD_SUCCESS) {
+//        return (td_void *)(TD_FAILURE);
+//    }
+//
+//    path = realpath(c_stream_file, TD_NULL);
+//    if (path == TD_NULL) {
+//        sample_print("chn %d Invalid stream path. Please check!\n", thread_param->chn_id);
+//        return (td_void *)(TD_FAILURE);
+//    }
 
-    path = realpath(c_stream_file, TD_NULL);
-    if (path == TD_NULL) {
-        sample_print("chn %d Invalid stream path. Please check!\n", thread_param->chn_id);
-        return (td_void *)(TD_FAILURE);
-    }
+    // fp_strm = fopen(path, "rb");
 
-    fp_strm = fopen(path, "rb");
-    if (fp_strm == TD_NULL) {
-        sample_print("chn %d can't open file %s in send stream thread!\n", thread_param->chn_id, c_stream_file);
-        goto end1;
-    }
-    printf("\n \033[0;36m chn %d, stream file:%s, userbufsize: %d \033[0;39m\n", thread_param->chn_id,
-        thread_param->c_file_name, thread_param->min_buf_size);
 
-    buf = malloc(thread_param->min_buf_size);
-    if (buf == TD_NULL) {
+    // fp_strm = fopen(path, "rb");
+	if(thread_param->chn_id == 0) {
+
+    //if (fp_strm == TD_NULL) {
+    //    sample_print("chn %d can't open file %s in send stream thread!\n", thread_param->chn_id, c_stream_file);
+    //    goto end1;
+    //}
+    //printf("\n \033[0;36m chn %d, stream file:%s, userbufsize: %d \033[0;39m\n", thread_param->chn_id,
+    //    thread_param->c_file_name, thread_param->min_buf_size);
+
+    // buf = malloc(thread_param->min_buf_size);
+    // if (buf == TD_NULL) {
+    //     sample_print("chn %d can't alloc %d in send stream thread!\n",
+    //         thread_param->chn_id, thread_param->min_buf_size);
+    //     goto end;
+    // }
+    // fflush(stdout);
+
+    buf_tmp = malloc(8 * 1024 * 1024);
+    if (buf_tmp == TD_NULL) {
         sample_print("chn %d can't alloc %d in send stream thread!\n",
             thread_param->chn_id, thread_param->min_buf_size);
         goto end;
     }
-    fflush(stdout);
 
-    sample_comm_vdec_send_stream_process(thread_param, fp_strm, buf);
+    atomic_init(&random_int, 1);
+
+
+    sleep(2);
+
+
+    sample_comm_vdec_send_stream_process_tmp(thread_param);
 
     /* send the flag of stream end */
     (td_void)memset_s(&stream, sizeof(ot_vdec_stream), 0, sizeof(ot_vdec_stream));
     stream.end_of_stream = TD_TRUE;
     ss_mpi_vdec_send_stream(thread_param->chn_id, &stream, -1);
-
+	}
     printf("\033[0;35m chn %d send steam thread return ...  \033[0;39m\n", thread_param->chn_id);
     fflush(stdout);
     if (buf != TD_NULL) {
@@ -672,8 +808,8 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
         buf = TD_NULL;
     }
 end:
-    fclose(fp_strm);
-    fp_strm = TD_NULL;
+//    fclose(fp_strm);
+//    fp_strm = TD_NULL;
 end1:
     free(path);
     path = TD_NULL;
@@ -720,6 +856,9 @@ td_void sample_comm_vdec_start_send_stream(td_s32 chn_num, vdec_thread_param *vd
         printf("vdec_send or vdec_thread can't be NULL!\n");
         return;
     }
+    pthread_t send_thread = 0;
+    pthread_create(&send_thread, NULL, udp_send_thread, NULL);
+
     for (i = 0; (i < (td_u32)chn_num) && (i < send_arr_len) && (i < thread_arr_len); i++) {
         vdec_thread[i] = 0;
         pthread_create(&vdec_thread[i], 0, sample_comm_vdec_send_stream, (td_void *)&vdec_send[i]);
@@ -734,6 +873,8 @@ td_void sample_comm_vdec_stop_send_stream(td_s32 chn_num, vdec_thread_param *vde
         printf("vdec_send or vdec_thread can't be NULL!\n");
         return;
     }
+
+    
     for (i = 0; (i < (td_u32)chn_num) && (i < send_arr_len) && (i < thread_arr_len); i++) {
         vdec_send[i].e_thread_ctrl = THREAD_CTRL_STOP;
         if (vdec_thread[i] != 0) {
