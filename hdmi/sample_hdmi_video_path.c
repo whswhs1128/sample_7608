@@ -155,7 +155,7 @@ static td_s32 step2_init_vb(sample_vdec_attr *sample_vdec, td_u32 size)
     td_s32 ret;
 
     for (i = 0; i < g_vdec_chn_num && i < size; i++) {
-        sample_vdec[i].type = OT_PT_H265;
+        sample_vdec[i].type = OT_PT_H264;
         sample_vdec[i].width = FMT_3840_2160_WIDTH;
         sample_vdec[i].height = FMT_3840_2160_HEIGHT;
         sample_vdec[i].mode = OT_VDEC_SEND_MODE_FRAME;
@@ -223,7 +223,7 @@ static td_s32 step5_start_vo(ot_vo_intf_sync intf_sync)
     g_vo_config.bg_color = COLOR_RGB_BLUE;
     g_vo_config.dis_buf_len = NUM_3;
     g_vo_config.dst_dynamic_range = OT_DYNAMIC_RANGE_SDR8;
-    g_vo_config.vo_mode = VO_MODE_1MUX;
+    g_vo_config.vo_mode = VO_MODE_4MUX;
     g_vo_config.pix_format = OT_PIXEL_FORMAT_YVU_SEMIPLANAR_420;
     g_vo_config.disp_rect.x = 0;
     g_vo_config.disp_rect.y = 0;
@@ -280,7 +280,7 @@ static td_u64 vdec_frame_rate_get(ot_vo_intf_sync intf_sync)
             break;
 
         default:
-            fps = FRAME_RATE_60HZ;
+            fps = 30;
             break;
     }
 
@@ -294,16 +294,16 @@ static td_s32 step8_send_stream_to_vdec(sample_vdec_attr *sample_vdec, td_u32 si
 
     for (i = 0; i < g_vdec_chn_num && i < size; i++) {
         ret = snprintf_s(g_vdec_send[i].c_file_name, FILE_NAME_LEN, FILE_NAME_LEN - 1,
-            "source_file/3840x2160_8bit.h265");
-        if (ret < 0) {
-            sample_prt("snprintf_s err\n");
-            return ERRNO_STREAM_SEND_FAILE;
-        }
-        ret = snprintf_s(g_vdec_send[i].c_file_path, FILE_NAME_LEN, FILE_NAME_LEN - 1, "%s", VIDIO_STREAM_PATH);
-        if (ret < 0) {
-            sample_prt("snprintf_s err\n");
-            return ERRNO_STREAM_SEND_FAILE;
-        }
+            "geth264_test.h264");
+//        if (ret < 0) {
+//            sample_prt("snprintf_s err\n");
+//            return ERRNO_STREAM_SEND_FAILE;
+//        }
+//        ret = snprintf_s(g_vdec_send[i].c_file_path, FILE_NAME_LEN, FILE_NAME_LEN - 1, "%s", VIDIO_STREAM_PATH);
+//        if (ret < 0) {
+//            sample_prt("snprintf_s err\n");
+//            return ERRNO_STREAM_SEND_FAILE;
+//        }
         g_vdec_send[i].type = sample_vdec[i].type;
         g_vdec_send[i].stream_mode = sample_vdec[i].mode;
         g_vdec_send[i].chn_id = i;
@@ -312,7 +312,7 @@ static td_s32 step8_send_stream_to_vdec(sample_vdec_attr *sample_vdec, td_u32 si
         g_vdec_send[i].pts_increase = 0;
         g_vdec_send[i].e_thread_ctrl = THREAD_CTRL_START;
         g_vdec_send[i].circle_send = TD_TRUE;
-        g_vdec_send[i].milli_sec = 0;
+        g_vdec_send[i].milli_sec = 200;
         g_vdec_send[i].min_buf_size = (sample_vdec[i].width * sample_vdec[i].height * NUM_3) >> 1;
         g_vdec_send[i].fps = vdec_frame_rate_get(intf_sync);
     }

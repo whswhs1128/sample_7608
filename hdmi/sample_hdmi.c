@@ -46,17 +46,17 @@ td_s32 main(td_s32 argc, td_char *argv[])
     sample_if_failure_return(ret, TD_FAILURE);
 
     g_start_audio = TD_TRUE;
-
-    while (g_sample_exit == TD_FALSE) {
-        printf("please input 'h' to get help or 'q' to quit!\n");
-        printf("hdmi_cmd >");
-        sample_get_input_cmd(input_cmd);
-        if (input_cmd[0] == 'q') {
-            printf("prepare to quit!\n");
-            break;
-        }
-        hdmi_test_cmd(input_cmd, CMD_LEN);
-    }
+	while(1);
+//    while (g_sample_exit == TD_FALSE) {
+//        printf("please input 'h' to get help or 'q' to quit!\n");
+//        printf("hdmi_cmd >");
+//        sample_get_input_cmd(input_cmd);
+//        if (input_cmd[0] == 'q') {
+//            printf("prepare to quit!\n");
+//            break;
+//        }
+//        hdmi_test_cmd(input_cmd, CMD_LEN);
+//    }
 
     if (g_start_audio) {
         sample_hdmi_stop_audio();

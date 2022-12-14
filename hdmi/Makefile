@@ -7,7 +7,7 @@ TARGET := sample_hdmi
 TARGET_PATH := $(PWD)
 
 CFLAGS += -I./include/ -L$(REL_LIB) -lsecurec
-
+CFLAG += -I /home/wanghs/ffmpeg/install/include  -L /home/wanghs/ffmpeg/install/lib/ -lavformat -lavcodec -lavutil -lswresample -lm -pthread -lrt  -ldl -mcmodel=large
 ifeq ($(OT_ARCH), ss524v100)
     CFLAGS += -DHDMI_SUPPORT_1_4
 endif
