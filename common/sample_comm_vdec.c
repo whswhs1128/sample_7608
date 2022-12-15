@@ -625,16 +625,22 @@ td_s32 sample_comm_vdec_check_send_stream_param(vdec_thread_param *thread_param,
 }
 #include <libavformat/avformat.h> 
 
-td_u8 *buf_tmp = TD_NULL;
-int size_tmp;
-atomic_uint random_int;
+td_u8* buf_tmp[4];
+int size_tmp[4];
+atomic_uint random_int[4];
 
-int *udp_send_thread()
+td_void *udp_send_thread(td_void *args)
 {
+    vdec_thread_param *thread_param = (vdec_thread_param *)args;
 	AVFormatContext *pFormatCtx = NULL;
 	AVDictionary *options = NULL;
 	AVPacket *packet = NULL;
-	char filepath[] = "rtsp://192.168.1.103/stream0";
+	char filepath[128];
+	if(thread_param->chn_id % 2 == 0) {
+	    strcpy(filepath, "rtsp://192.168.1.100/stream0");
+	} else {
+	    strcpy(filepath, "rtsp://192.168.1.108/stream0");
+	}
     pthread_detach(pthread_self());
 	
 	av_dict_set(&options, "buffer_size", "8192000", 0);
@@ -679,10 +685,10 @@ int *udp_send_thread()
 		{
 			if (packet->stream_index == videoindex)
 			{
-				if(random_int == 1) {
-					memcpy(buf_tmp, packet->data, packet->size);
-					random_int = 0;
-					size_tmp = packet->size;
+				if(random_int[thread_param->chn_id] == 1) {
+					memcpy(buf_tmp[thread_param->chn_id], packet->data, packet->size);
+					random_int[thread_param->chn_id] = 0;
+					size_tmp[thread_param->chn_id] = packet->size;
 				}
 			}
 			av_packet_unref(packet);
@@ -716,13 +722,13 @@ td_void sample_comm_vdec_send_stream_process_tmp(vdec_thread_param *thread_param
             continue;
         }
 
-        if(random_int == 1) {
+        if(random_int[thread_param->chn_id] == 1) {
             usleep(20);
             continue;
         }
         end_of_stream = TD_FALSE;
-        read_len = size_tmp;
-        memcpy(buf_in, buf_tmp, size_tmp);
+        read_len = size_tmp[thread_param->chn_id];
+        memcpy(buf_in, buf_tmp[thread_param->chn_id], size_tmp[thread_param->chn_id]);
        
 
         used_bytes = 0;
@@ -734,7 +740,7 @@ td_void sample_comm_vdec_send_stream_process_tmp(vdec_thread_param *thread_param
         stream.need_display = 1;
 
         sample_comm_vdec_handle_send_stream(thread_param, &stream, &end_of_stream, &pts);
-        random_int = 1;
+        random_int[thread_param->chn_id] = 1;
     }
     return;
 }
@@ -764,7 +770,7 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
 
 
     // fp_strm = fopen(path, "rb");
-	if(thread_param->chn_id == 0) {
+
 
     //if (fp_strm == TD_NULL) {
     //    sample_print("chn %d can't open file %s in send stream thread!\n", thread_param->chn_id, c_stream_file);
@@ -781,14 +787,14 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
     // }
     // fflush(stdout);
 
-    buf_tmp = malloc(8 * 1024 * 1024);
-    if (buf_tmp == TD_NULL) {
+    buf_tmp[thread_param->chn_id] = malloc(8*1024*1024);
+    if (buf_tmp[thread_param->chn_id] == TD_NULL) {
         sample_print("chn %d can't alloc %d in send stream thread!\n",
             thread_param->chn_id, thread_param->min_buf_size);
         goto end;
     }
 
-    atomic_init(&random_int, 1);
+    atomic_init(&random_int[thread_param->chn_id], 1);
 
 
     sleep(2);
@@ -800,7 +806,7 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
     (td_void)memset_s(&stream, sizeof(ot_vdec_stream), 0, sizeof(ot_vdec_stream));
     stream.end_of_stream = TD_TRUE;
     ss_mpi_vdec_send_stream(thread_param->chn_id, &stream, -1);
-	}
+
     printf("\033[0;35m chn %d send steam thread return ...  \033[0;39m\n", thread_param->chn_id);
     fflush(stdout);
     if (buf != TD_NULL) {
@@ -848,6 +854,8 @@ td_void sample_comm_vdec_cmd_not_circle_send(td_u32 chn_num, vdec_thread_param *
     return;
 }
 
+pthread_t send_thread[OT_VDEC_MAX_CHN_NUM];
+
 td_void sample_comm_vdec_start_send_stream(td_s32 chn_num, vdec_thread_param *vdec_send,
     pthread_t *vdec_thread, td_u32 send_arr_len, td_u32 thread_arr_len)
 {
@@ -856,11 +864,14 @@ td_void sample_comm_vdec_start_send_stream(td_s32 chn_num, vdec_thread_param *vd
         printf("vdec_send or vdec_thread can't be NULL!\n");
         return;
     }
-    pthread_t send_thread = 0;
-    pthread_create(&send_thread, NULL, udp_send_thread, NULL);
 
     for (i = 0; (i < (td_u32)chn_num) && (i < send_arr_len) && (i < thread_arr_len); i++) {
-        vdec_thread[i] = 0;
+        send_thread[i] = i+4;
+        pthread_create(&send_thread[i], NULL, udp_send_thread, (td_void *)&vdec_send[i]);
+    }
+
+    for (i = 0; (i < (td_u32)chn_num) && (i < send_arr_len) && (i < thread_arr_len); i++) {
+        vdec_thread[i] = i;
         pthread_create(&vdec_thread[i], 0, sample_comm_vdec_send_stream, (td_void *)&vdec_send[i]);
     }
 }
