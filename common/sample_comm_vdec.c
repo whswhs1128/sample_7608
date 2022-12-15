@@ -654,7 +654,7 @@ td_void *udp_send_thread(td_void *args)
 	}
 	pthread_detach(pthread_self());
 	
-	av_dict_set(&options, "buffer_size", "8192000", 0);
+	av_dict_set(&options, "buffer_size", "2048000", 0);
 	av_dict_set(&options, "rtsp_transport", "tcp", 0);
 	av_dict_set(&options, "stimeout", "5000000", 0); 
 	av_dict_set(&options, "max_delay", "500000", 0); 
@@ -722,7 +722,7 @@ td_void sample_comm_vdec_send_stream_process_tmp(vdec_thread_param *thread_param
     td_u8 *buf_in = TD_NULL;
     
 
-    buf_in = malloc(8 * 1024 * 1024);
+    buf_in = malloc(2 * 1024 * 1024);
     thread_param->last_time = 0;
     thread_param->time_gap = 0;
     while (1) {
@@ -798,7 +798,7 @@ td_void *sample_comm_vdec_send_stream(td_void *args)
     // }
     // fflush(stdout);
 
-    buf_tmp[thread_param->chn_id] = malloc(8*1024*1024);
+    buf_tmp[thread_param->chn_id] = malloc(2*1024*1024);
     if (buf_tmp[thread_param->chn_id] == TD_NULL) {
         sample_print("chn %d can't alloc %d in send stream thread!\n",
             thread_param->chn_id, thread_param->min_buf_size);
