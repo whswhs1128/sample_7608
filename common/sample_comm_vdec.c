@@ -636,12 +636,23 @@ td_void *udp_send_thread(td_void *args)
 	AVDictionary *options = NULL;
 	AVPacket *packet = NULL;
 	char filepath[128];
-	if(thread_param->chn_id % 2 == 0) {
-	    strcpy(filepath, "rtsp://192.168.1.100/stream0");
-	} else {
-	    strcpy(filepath, "rtsp://192.168.1.108/stream0");
+	switch(thread_param->chn_id) {
+	    case 0:
+		strcpy(filepath, "rtsp://192.168.1.110/stream0");
+		break;
+	    case 1:
+		strcpy(filepath, "rtsp://192.168.1.111/stream0");
+                break;
+	    case 2:
+                strcpy(filepath, "rtsp://192.168.1.112/stream0");
+                break;
+	    case 3:
+                strcpy(filepath, "rtsp://192.168.1.113/stream0");
+                break;
+	    default:
+                strcpy(filepath, "rtsp://192.168.1.110/stream0");
 	}
-    pthread_detach(pthread_self());
+	pthread_detach(pthread_self());
 	
 	av_dict_set(&options, "buffer_size", "8192000", 0);
 	av_dict_set(&options, "rtsp_transport", "tcp", 0);
