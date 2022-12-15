@@ -347,10 +347,14 @@ static td_s32 sample_start_vo(sample_vo_cfg *vo_config, td_u32 vpss_grp_num)
     vo_config->pix_format        = OT_PIXEL_FORMAT_YVU_SEMIPLANAR_420;
     vo_config->disp_rect.x       = 0;
     vo_config->disp_rect.y       = 0;
-    vo_config->disp_rect.width   = g_disp_size.width;
-    vo_config->disp_rect.height  = g_disp_size.height;
-    vo_config->image_size.width  = g_disp_size.width;
-    vo_config->image_size.height = g_disp_size.height;
+    //vo_config->disp_rect.width   = g_disp_size.width;
+    //vo_config->disp_rect.height  = g_disp_size.height;
+    vo_config->disp_rect.width   = 1920;
+    vo_config->disp_rect.height  = 1080;
+    //vo_config->image_size.width  = g_disp_size.width;
+    //vo_config->image_size.height = g_disp_size.height;
+    vo_config->image_size.width  = 1920;
+    vo_config->image_size.height = 1080;
     vo_config->vo_part_mode      = OT_VO_PARTITION_MODE_SINGLE;
     vo_config->compress_mode     = OT_COMPRESS_MODE_NONE;
 

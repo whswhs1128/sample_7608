@@ -49,8 +49,8 @@ static td_u16 g_lmf_coef[128] = {
 static sample_vo_cfg g_vo_cfg = {
     .vo_dev            = SAMPLE_VO_DEV_UHD,
     .vo_intf_type      = OT_VO_INTF_HDMI,
-    .intf_sync         = OT_VO_OUT_1080P30,
-    .bg_color          = COLOR_RGB_BLACK,
+    .intf_sync         = OT_VO_OUT_1080P60,
+    .bg_color          = COLOR_RGB_BLUE,
     .pix_format        = OT_PIXEL_FORMAT_YVU_SEMIPLANAR_420,
     .disp_rect         = {0, 0, 1920, 1080},
     .image_size        = {1920, 1080},
@@ -73,7 +73,7 @@ static sample_comm_venc_chn_param g_venc_chn_param = {
         .gop_mode = OT_VENC_GOP_MODE_NORMAL_P,
         .normal_p = {2},
     },
-    .type                 = OT_PT_H265,
+    .type                 = OT_PT_H264,
     .rc_mode              = SAMPLE_RC_VBR,
 };
 

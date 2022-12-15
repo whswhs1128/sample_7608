@@ -18,6 +18,10 @@
 #include <pthread.h>
 #include <sys/prctl.h>
 #include <sys/shm.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define OT_SAMPLE_IVE_MD_IMAGE_NUM          2
 #define OT_SAMPLE_IVE_MD_MILLIC_SEC         20000
@@ -255,57 +259,113 @@ int yuv2rgb_nv12(unsigned char* pYuvBuf, unsigned char* pRgbBuf, int height, int
 
 int shmid_tx;
 void* ptr_tx;
-int shmid_rx;
-void* ptr_rx;
+//int shmid_rx;
+//void* ptr_rx;
 unsigned int size;
+int p[61];
+
+ot_sample_svp_rect_info region_tmp;
+
 
 
 ot_sample_svp_rect_info function_draw_region() {
-	ot_sample_svp_rect_info region_tmp;
 
-	int p[61];
-        memcpy(p, ptr_rx,256);
+//	if(strlen(ptr_rx)!= 0 ) {
+	if(1) {
+//		memcpy(p, ptr_rx, 244);
+	//	memset(ptr_rx, 0, 244);
+//		memset(ptr_tx, 0, 12441600);
 
-//	for (int i = 0; i < 61; i++)
-//	{
-//		printf("p[%d] is %d,",i, p[i]);	
-//	}
-//	printf("\n");
+		//for (int i = 0; i < 6; i++)
+		//{
+		//	printf("p[%d] is %d,",i, p[i]);	
+		//}
+		//printf("\n");
 
-
-
-
-//fuzhi
-
-	region_tmp.num = p[0];
-	for(int i = 0; i < region_tmp.num; i++)
-	{
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].x = p[6*i + 3];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].y = p[6*i + 4];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].x = p[6*i + 3];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].y = p[6*i + 6];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].x = p[6*i + 5];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].y = p[6*i + 4];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].x = p[6*i + 5];
-        region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].y = p[6*i + 6];
+		region_tmp.num = p[0];
+		if(region_tmp.num != 0) {
+			printf("num is %d\n",region_tmp.num);
+			for(int i = 0; i < region_tmp.num; i++)
+			{
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].x =  p[6*i +3];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].y =  p[6*i +4];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].x =   p[6*i +3];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].y =   p[6*i +6];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].x =   p[6*i +5];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].y =   p[6*i +4];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].x = p[6*i +5];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].y = p[6*i +6];
+			}
+		}
 	}
-
-
-//     for(int j=0; j<region_tmp.num; j++){
-//             printf("enter j is %d\n",j);
-//             printf("point1_x is %d,point_y is %d\n",region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_ZERO].x,region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_ZERO].y);
-//             printf("point2_x is %d,point_y is %d\n",region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_ONE].x,region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_ONE].y);
-//             printf("point3_x is %d,point_y is %d\n",region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_TWO].x,region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_TWO].y);
-//             printf("point4_x is %d,point_y is %d\n",region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_THREE].x,region_tmp.rect[j].point[OT_SAMPLE_POINT_IDX_THREE].y);
-//     }
-
-	memset(ptr_rx, 0, 256);
-	
 	return region_tmp; 
 }
 
-int i;
-ot_sample_svp_rect_info region_tmp;
+unsigned char *user_addr;
+
+int sockfd;
+struct sockaddr_in serverAddr;
+char *buf;
+#define HOST_IP "192.168.1.66"
+const int PORT = 1777;
+
+void *udp_recv_thread() {
+
+	void* ptr_recv;
+	ptr_recv = malloc(256);	
+	printf("ptr size if %d\n",sizeof(ptr_recv));
+        while(1) {
+                socklen_t len = sizeof(serverAddr);
+                memset(ptr_recv,0,256);
+                recvfrom(sockfd,ptr_recv,sizeof(ptr_recv),0,(struct sockaddr*)&serverAddr,&len);
+		memcpy(p, ptr_recv, 256);
+		printf("ptr_recv = %s\n", ptr_recv);
+		printf("p[0] = %d\n", p[0]);		
+		region_tmp.num = 0;
+#if 0
+		if(region_tmp.num != 0) {
+			printf("num is %d\n",region_tmp.num);
+			for(int i = 0; i < region_tmp.num; i++)
+			{
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].x =  p[6*i +3];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ZERO].y =  p[6*i +4];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].x =   p[6*i +3];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_ONE].y =   p[6*i +6];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].x =   p[6*i +5];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_TWO].y =   p[6*i +4];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].x = p[6*i +5];
+				region_tmp.rect[i].point[OT_SAMPLE_POINT_IDX_THREE].y = p[6*i +6];
+			}
+		}
+#endif
+	}
+
+}
+
+
+void start_udp_server() {
+    socklen_t addr_size;
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    printf("start connect udp server...\n");
+    memset(&serverAddr, '\0', sizeof(serverAddr));
+
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(PORT);
+    serverAddr.sin_addr.s_addr = inet_addr(HOST_IP);
+
+    bind(sockfd,(struct sockaddr *)&serverAddr,sizeof(serverAddr));
+    pthread_t recv_thread = 0;
+
+
+    pthread_create(&recv_thread, NULL, udp_recv_thread, NULL);
+    pthread_detach(recv_thread);
+
+
+}
+
+
 static td_void *sample_ivs_md_proc(td_void *args)
 {
     td_s32 ret;
@@ -321,12 +381,20 @@ static td_void *sample_ivs_md_proc(td_void *args)
     /* Create chn */
     ret = ot_ivs_md_create_chn(hld.md_chn, &(md_ptr->md_attr));
     sample_svp_check_exps_return(ret != TD_SUCCESS, TD_NULL, SAMPLE_SVP_ERR_LEVEL_ERROR, "ot_ivs_md_create_chn fail\n");
+//udp server
 
+    start_udp_server();
+
+//udpserver end
+    int count;
     size =12441600;
-    shmid_tx = shmget(100, size*2, IPC_CREAT|0664);
+    ptr_tx = malloc(size);
+    user_addr = malloc(size);
+    //ptr_rx = malloc(512);
+    shmid_tx = shmget(100, size, IPC_CREAT|0664);
     ptr_tx = shmat(shmid_tx, NULL, 0);
-    shmid_rx = shmget(111, 4096, IPC_CREAT|0664);
-    ptr_rx = shmat(shmid_rx, NULL, 0);
+   // shmid_rx = shmget(111, 256, IPC_CREAT|0664);
+    //ptr_rx = shmat(shmid_rx, NULL, 0);
     
     while (g_stop_signal == TD_FALSE) {
         ret = ss_mpi_vpss_get_chn_frame(hld.vpss_grp, vpss_chn[1], &frm[1], OT_SAMPLE_IVE_MD_MILLIC_SEC);
@@ -348,68 +416,80 @@ static td_void *sample_ivs_md_proc(td_void *args)
         ret = ot_ivs_md_proc(hld.md_chn, &md_ptr->img[cur_idx], &md_ptr->img[1 - cur_idx], TD_NULL, &md_ptr->blob);
         sample_svp_check_failed_goto(ret, base_free, SAMPLE_SVP_ERR_LEVEL_ERROR, "ivs_md_proc fail,Err(%#x)\n", ret);
 
-	
-//	if(i == 100) {
-//		char *filename = "file.yuv";
-//		unsigned char *user_addr;
-//		unsigned int size;
-//
-//		size = frm[0].video_frame.stride[0] * frm[0].video_frame.height * 3/2;
-//		user_addr = (unsigned char *)ss_mpi_sys_mmap(frm[0].video_frame.phys_addr[0], size);
-//
-//		FILE *fp = fopen(filename, "w+");
-//		fwrite(user_addr, size, 1, fp);
-//		fclose(fp);
-//
-//		ss_mpi_sys_munmap(user_addr, size);
-//	}
-	i++;
+
 	sample_ivs_set_src_dst_size(&g_src_dst, md_ptr->md_attr.width, md_ptr->md_attr.height,
             frm[0].video_frame.width, frm[0].video_frame.height);
         ret = sample_common_ive_blob_to_rect(sample_svp_convert_addr_to_ptr(ot_ive_ccblob, md_ptr->blob.virt_addr),
             &(md_ptr->region), OT_SVP_RECT_NUM, OT_SAMPLE_IVE_MD_AREA_THR_STEP, g_src_dst);
         sample_svp_check_exps_goto(ret != TD_SUCCESS, base_free, SAMPLE_SVP_ERR_LEVEL_ERROR, "blob to rect failed!\n");
-
-#if 1	
-	if(strlen(ptr_tx) == 0) {
-	    unsigned char *user_addr;
+	count++;
+#if 1
+	//if(strlen(ptr_tx) == 0) {
+	if(1) {
 	    user_addr = (unsigned char *)ss_mpi_sys_mmap(frm[0].video_frame.phys_addr[0], size);
 	    memcpy(ptr_tx,user_addr,size);
 	    ss_mpi_sys_munmap(user_addr, size);
 	}
 	
-	if(strlen(ptr_rx) != 0) {
-	    region_tmp = function_draw_region();
-	}
+	//if(strlen(ptr_rx) != 0) {
+//	if(1) {
+//	    region_tmp = function_draw_region();
+//	}
+	
+//		memcpy(p, ptr_rx, 244);
+//		memset(ptr_rx, 0, 244);
+//		memset(ptr_tx, 0, 12441600);
+//	
+//	for (int i = 0; i < 6; i++)
+//	{
+//	      printf("p[%d] is %d,",i, p[i]);
+//	}
+//	printf("\n");
+
+//	region_tmp.num = p[0];
+//	if(p[0] != 0) {
+//		printf("num is %d\n", p[0]);
+//		for(int i = 0; i < region_tmp.num; i++)
+//		{
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x =  p[3];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y =  p[4];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x =   p[3];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y =   p[6];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x =   p[5];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y =   p[4];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].x = p[5];
+//		region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = p[6];
+//		}
+//	}
+     //int num = 2;
+     ////ot_sample_svp_rect_info region_tmp;
+     //region_tmp.num = num;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].x = 500;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
+     //region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
+
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].x = 1000;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].y = 1000;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].x = 1500;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].y = 1000;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].x = 1500;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].y = 1500;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].x = 1000;
+     //region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].y = 1500;
+
 #endif
-//	int num = 2;
-//	ot_sample_svp_rect_info region_tmp;
-//	region_tmp.num = num;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
-//	region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
-//	region_tmp.rect[0]region_tmp.num = num;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].x = 100;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ZERO].y = 100;
-//      region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].x = 500;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_ONE].y = 500;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].x = 100;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_TWO].y = 500;
-//      region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].x = 500;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
-//        region_tmp.rect[0].point[OT_SAMPLE_POINT_IDX_THREE].y = 100;
-//
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].x = 1000;
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ZERO].y = 1000;
-//	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].x = 1500;
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_ONE].y = 1000;
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].x = 1500;
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_TWO].y = 1500;
-//	region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].x = 1000;
-//        region_tmp.rect[1].point[OT_SAMPLE_POINT_IDX_THREE].y = 1500;
 	
 	/* Draw rect */
        // ret = sample_common_svp_vgs_fill_rect(&frm[0], &md_ptr->region, 0x0000FF00);

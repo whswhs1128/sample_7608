@@ -3,9 +3,10 @@
 OBJS  := $(SMP_SRCS:%.c=%.o)
 
 CFLAGS += $(COMM_INC)
-
+CFLAG += -I /home/wanghs/ffmpeg/install/include  -L /home/wanghs/ffmpeg/install/lib/ -lavformat -lavcodec -lavutil -lswresample -lm -pthread -lrt  -ldl
 MPI_LIBS += $(REL_LIB)/libss_hdmi.a
 MPI_LIBS += $(LIBS_LD_CFLAGS)
+MPI_LIBS += -I /home/wanghs/ffmpeg/install/include  -L /home/wanghs/ffmpeg/install/lib/ -lavformat -lavcodec -lavutil -lswresample -lm -pthread -lrt  -ldl -fPIC
 
 .PHONY : clean all
 

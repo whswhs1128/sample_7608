@@ -19,8 +19,13 @@ SENSOR0_TYPE ?= OV_OS08A20_MIPI_8M_30FPS_12BIT
 SENSOR1_TYPE ?= OV_OS08A20_MIPI_8M_30FPS_12BIT
 SENSOR2_TYPE ?= OV_OS08A20_MIPI_8M_30FPS_12BIT
 SENSOR3_TYPE ?= OV_OS08A20_MIPI_8M_30FPS_12BIT
+CFLAG += -I /home/wanghs/ffmpeg/install/include  -L /home/wanghs/ffmpeg/install/lib/ -lavformat -lavcodec -lavutil -lswresample -lm -pthread -lrt  -ldl
 
 MPI_LIBS := $(REL_LIB)/libss_mpi.a
+#MPI_LIBS := $(REL_LIB)/libavformat.a
+#MPI_LIBS := $(REL_LIB)/libavcodec.a
+#MPI_LIBS := $(REL_LIB)/libavutil.a
+#MPI_LIBS := $(REL_LIB)/libswresample.a
 
 ifeq ($(CONFIG_OT_ISP_SUPPORT), y)
 MPI_LIBS += $(REL_LIB)/libss_ae.a

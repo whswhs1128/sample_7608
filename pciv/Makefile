@@ -15,7 +15,7 @@ PCIV_SLAVE := sample_pciv_slave
 # CFLAGS += -lpthread -lm
 .PHONY : clean all host slave
 CFLAGS += $(COMM_INC)
-
+CFLAGS += -I /home/wanghs/ffmpeg/install/include  -L /home/wanghs/ffmpeg/install/lib/ -lavformat -lavcodec -lavutil -lswresample -lm -pthread -lrt  -ldl
 all: host slave
 
 host: $(PCIV_HOST)
